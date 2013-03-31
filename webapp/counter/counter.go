@@ -193,20 +193,27 @@ var mainTemplate = template.Must(template.New("main").Parse(tpl))
 func GetToken(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	tok, err := channel.Create(c, r.FormValue("id"))
+	callback := r.FormValue("callback")
 	if err != nil {
 		http.Error(w, "Couldn't create Channel", http.StatusInternalServerError)
 		c.Errorf("channel.Create: %v", err)
 		return
 	}
-	// fmt.Fprintf(w, "%s", tok)
+	if callback == "" {
+		w.Header().Set("Content-type", "text/javascript")
+		fmt.Fprintf(w, "%s", tok)
+	} else {
+		fmt.Fprintf(w, callback+"('%s')", tok)
+	}
 
-	mainTemplate.Execute(w, map[string]string{
-		"token": tok,
-	})
+	// mainTemplate.Execute(w, map[string]string{
+	// 	"token": tok,
+	// })
 }
 
 func SendMessage(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	token := r.FormValue("id")
-	channel.SendJSON(c, token, "{1,3,4}")
+	data := r.FormValue("json")
+	channel.Send(c, token, data)
 }
