@@ -94,8 +94,18 @@ func localIP() (net.IP, error) {
 
 var GIF []byte
 
+var chan_visitors chan string
+
 func init() {
 	GIF, _ = base64.StdEncoding.DecodeString("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")
+
+	chan_visitors = make(chan string, 10)
+
+	go func() {
+		for {
+			user := <-chan_visitors
+		}
+	}()
 }
 
 func Handle(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,39 @@
+<html>
+    <body>
+
+        <script type="text/javascript" src="/_ah/channel/jsapi"></script>
+
+        <script>
+            function onOpened() {
+                alert("onOpened")
+            }
+
+            function onMessage(obj) {
+                console.log(obj)
+                alert("online: " + obj.data)
+            }
+
+            function onError(x) {
+                alert("onError "+x)
+            }
+
+            function onClose(x) {
+                alert("onClose "+x)
+            }
+
+            function init(token) {            
+                channel = new goog.appengine.Channel(token);
+                socket = channel.open();
+                socket.onopen = onOpened;
+                socket.onmessage = onMessage;
+                socket.onerror = onError;
+                socket.onclose = onClose;
+            }
+        </script>
+
+        <script type="text/javascript" src="/online_get_token?id=pi&callback=init"></script>     
+
+        在线人数提示
+
+    </body>
+</html>

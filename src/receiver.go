@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	URL "net/url"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -30,7 +30,8 @@ var (
 
 func init() {
 	log.Println("starting ....")
-	params["token"] = get_token(channel)
+	params["token"] = "AHRlWrqFMYxLsivdKDcDuWL7vrus4lE_gBI0tQYIPuedVOyhvhJTZTqzeG8iMq4Ks3LdP5p5wtwzfAM_1u4RBd9l4-8cuT9O-Q"
+	//params["token"] = get_token(channel)
 }
 
 func main() {
@@ -90,7 +91,7 @@ var sidRe = regexp.MustCompile(`(?ismU),\"(.*)\"`)
 
 func get_sid() {
 	params["RID"] = fmt.Sprintf("%d", RID)
-	postfields := &URL.Values{
+	postfields := &url.Values{
 		"count": []string{"0"},
 	}
 	resp := HttpCall("http://${host}.talkgadget.google.com/talkgadget/dch/bind?VER=8&clid=${clid}&gsessionid=${gsessionid}&prop=data&token=${token}&ec=%5B%22ci%3Aec%22%5D&RID=${RID}&CVER=1&zx=${zx}&t=1", strings.NewReader(postfields.Encode()))
@@ -113,7 +114,7 @@ func register_new_conneciton() {
 	RID++
 	params["RID"] = fmt.Sprintf("%d", RID)
 
-	postfields := &URL.Values{}
+	postfields := &url.Values{}
 	postfields.Set("count", "1")
 	postfields.Set("ofs", "0")
 	postfields.Set("req0_m", `["connect-add-client"]`)
@@ -135,7 +136,11 @@ func receive() {
 	for {
 		bytes, _, err := reader.ReadLine()
 		if err != nil {
-			panic(err)
+			if err == io.EOF {
+
+			} else {
+				panic(err)
+			}
 		}
 		len, err := strconv.Atoi(string(bytes))
 		if err != nil {
@@ -154,14 +159,14 @@ func receive() {
 	}
 }
 
-func HttpCall(url string, body io.Reader) (resp *http.Response) {
+func HttpCall(_url string, body io.Reader) (resp *http.Response) {
 	params["zx"] = RandomString(12)
-	url = make_url(url, params)
+	_url = make_url(_url, params)
 	method := "GET"
 	if body != nil {
 		method = "POST"
 	}
-	req, err := http.NewRequest(method, url, body)
+	req, err := http.NewRequest(method, _url, body)
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_2) AppleWebKit/537.31 (KHTML, like Gecko) Chrome/26.0.1410.43 Safari/537.31")
 	req.Header.Set("Referer", "http://app.myalert.info/online.html")
 	if body != nil {
