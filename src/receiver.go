@@ -9,6 +9,7 @@ import (
 	"net/http"
 	URL "net/url"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -136,7 +137,20 @@ func receive() {
 		if err != nil {
 			panic(err)
 		}
-		log.Println(string(bytes))
+		len, err := strconv.Atoi(string(bytes))
+		if err != nil {
+			panic(err)
+		}
+		buf := make([]byte, len)
+		n, err := reader.Read(buf)
+		if err != nil {
+			panic(err)
+		}
+		if n == len {
+			log.Println(string(buf))
+		} else {
+			panic("Read less ?")
+		}
 	}
 }
 
