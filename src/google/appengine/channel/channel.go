@@ -1,19 +1,24 @@
 package channel
 
+import (
+	"net/http"
+)
 
-               socket = channel.open();
-                socket.onopen = onOpened;
-                socket.onmessage = onMessage;
-                socket.onerror = onError;
-                socket.onclose = onClose;
+type Channel struct {
+	Key           string
+	URL_Get_Token string
+	User_Agent    string
+	Params        map[string]string
+	Client        *http.Client
+	Scookie       *http.Cookie
+	Handler       ChannelSocket
 
-type Channel interface {
-    Open() (socket Socket, err error)
+	rid int
 }
 
-type Socket interface {
-    OnOpened()
-    OnMessage(msg string)
-    onError(err error)
-    onClose()
+type ChannelSocket interface {
+	OnOpened()
+	OnMessage(msg string)
+	onError(err error)
+	onClose()
 }

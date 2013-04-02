@@ -14,8 +14,10 @@ import (
 )
 
 var (
-	channel = "pi"
-	params  = map[string]string{
+	channel    = "pi"
+	referer    = "http://app.myalert.info/online.html"
+	user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_2) AppleWebKit/537.31 (KHTML, like Gecko) Chrome/26.0.1410.43 Safari/537.31"
+	params     = map[string]string{
 		"host": "124",
 	}
 
@@ -167,8 +169,8 @@ func HttpCall(_url string, body io.Reader) (resp *http.Response) {
 		method = "POST"
 	}
 	req, err := http.NewRequest(method, _url, body)
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_2) AppleWebKit/537.31 (KHTML, like Gecko) Chrome/26.0.1410.43 Safari/537.31")
-	req.Header.Set("Referer", "http://app.myalert.info/online.html")
+	req.Header.Set("User-Agent", user_agent)
+	req.Header.Set("Referer", referer)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
