@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-func NewChannel(key string, token_url string) (c *Channel) {
+func NewChannel(token_url string, key string) (c *Channel) {
 	c = &Channel{
 		Key:           key,
 		URL_Get_Token: token_url,
@@ -32,8 +32,8 @@ func NewChannel(key string, token_url string) (c *Channel) {
 }
 
 func (c *Channel) Open() *ChannelSocket {
-	c.Params["token"] = "AHRlWrr98fpdytEmbnLI2c3O83Qoxs7ODxQpB6EiNgirL4wIn1kBuYCaCblxCd_xce_2Laka18z04HLKP0TtWra95TMUBakTFw"
-	//c.Params["token"] = c.NewToken()
+	c.Params["token"] = "AHRlWrrKAx3Or4rBdKuetGhj47BvylVN8s4DSXWQpQMzeRBKneh0H99vZR7Z7nWBMerurwnzMI_Ml5s10p5UL_IDKkk_0gYAmA"
+	// c.Params["token"] = c.NewToken()
 
 	c.Handler = &ChannelSocket{
 		OnOpened:  func() {},
@@ -178,7 +178,7 @@ func (c *Channel) receive() {
 		bytes, _, err := reader.ReadLine()
 		if err != nil {
 			if err == io.EOF {
-
+				break
 			} else {
 				c.Handler.OnError(err)
 			}
@@ -196,7 +196,7 @@ func (c *Channel) receive() {
 			//log.Println(string(buf))
 			c.Handler.OnMessage(string(buf))
 		} else {
-			panic("Read less ?")
+			panic("Read less ? " + string(buf[0:n]))
 		}
 	}
 	c.Handler.OnClose()
