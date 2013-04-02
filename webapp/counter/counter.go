@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"html/template"
 	"net"
 	"net/http"
 	"strconv"
@@ -94,19 +93,17 @@ func localIP() (net.IP, error) {
 
 var GIF []byte
 
-var chan_visitors chan string
-
 func init() {
 	GIF, _ = base64.StdEncoding.DecodeString("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")
-
-	chan_visitors = make(chan string, 10)
-
-	go func() {
-		for {
-			user := <-chan_visitors
-		}
-	}()
 }
+
+func background(c appengine.Context) {
+	uv, pv := count_uv_pv(c, 15)
+	c.Infof("uv: %d, pv: %d", uv, pv)
+	channel.Send(c, "pi", fmt.Sprintf("%d %d", uv, pv))
+}
+
+var runing = false
 
 func Handle(w http.ResponseWriter, r *http.Request) {
 	context := appengine.NewContext(r)
@@ -132,20 +129,14 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", GIF)
 }
 
-func Count(w http.ResponseWriter, r *http.Request) {
+func count_uv_pv(c appengine.Context, mins int) (uv int, pv int) {
 	count := 0
 	uniq := make(map[string]bool)
-	c := appengine.NewContext(r)
-	duration := 5
-	if r.FormValue("duration") != "" {
-		duration, _ = strconv.Atoi(r.FormValue("duration"))
-	}
 	query := &log.Query{
 		AppLogs:   true,
-		StartTime: time.Now().Add(time.Duration(-1*duration) * time.Minute),
+		StartTime: time.Now().Add(time.Duration(-1*mins) * time.Minute),
 		Versions:  []string{"1"},
 	}
-
 	for results := query.Run(c); ; {
 		record, err := results.Next()
 		if err == log.Done {
@@ -163,42 +154,20 @@ func Count(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	fmt.Fprintf(w, "%d %d\n", len(uniq), count)
+	uv = len(uniq)
+	pv = count
+	return
 }
 
-var tpl = `
-<html>
-    <body>
-        <script type="text/javascript" src="/_ah/channel/jsapi"></script>
-
-        <script>
-            function onOpened() {
-                alert("onOpened")
-            }
-
-            function onMessage(x) {
-                alert("onMessage "+x)
-            }
-
-            function onError(x) {
-                alert("onError "+x)
-            }
-
-            function onClose(x) {
-                alert("onClose "+x)
-            }
-
-            channel = new goog.appengine.Channel('{{.token}}');
-            socket = channel.open();
-            socket.onopen = onOpened;
-            socket.onmessage = onMessage;
-            socket.onerror = onError;
-            socket.onclose = onClose;
-        </script>
-    </body>
-</html>
-`
-var mainTemplate = template.Must(template.New("main").Parse(tpl))
+func Count(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	duration := 5
+	if r.FormValue("duration") != "" {
+		duration, _ = strconv.Atoi(r.FormValue("duration"))
+	}
+	uv, pv := count_uv_pv(c, duration)
+	fmt.Fprintf(w, "%d %d\n", uv, pv)
+}
 
 func GetToken(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
@@ -215,10 +184,6 @@ func GetToken(w http.ResponseWriter, r *http.Request) {
 	} else {
 		fmt.Fprintf(w, callback+"('%s')", tok)
 	}
-
-	// mainTemplate.Execute(w, map[string]string{
-	// 	"token": tok,
-	// })
 }
 
 func SendMessage(w http.ResponseWriter, r *http.Request) {

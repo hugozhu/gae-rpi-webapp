@@ -18,7 +18,7 @@ type Channel struct {
 
 type ChannelSocket struct {
 	OnOpened  func()
-	OnMessage func(msg string)
+	OnMessage func(msg *Element)
 	OnError   func(err error)
 	OnClose   func()
 }

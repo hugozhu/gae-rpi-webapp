@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -19,25 +20,25 @@ func NewChannel(token_url string, key string) (c *Channel) {
 		URL_Get_Token: token_url,
 		User_Agent:    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_2) AppleWebKit/537.31 (KHTML, like Gecko) Chrome/26.0.1410.43 Safari/537.31",
 		Params: map[string]string{
-			"host": "124", //todo: change to random host
+			"host": strconv.Itoa(rand.Intn(1000)),
 		},
 		Client: &http.Client{},
 		Scookie: &http.Cookie{
 			Name:  "S",
 			Value: "",
 		},
-		rid: 1580,
+		rid: 1,
 	}
 	return
 }
 
 func (c *Channel) Open() *ChannelSocket {
-	c.Params["token"] = "AHRlWrrKAx3Or4rBdKuetGhj47BvylVN8s4DSXWQpQMzeRBKneh0H99vZR7Z7nWBMerurwnzMI_Ml5s10p5UL_IDKkk_0gYAmA"
-	// c.Params["token"] = c.NewToken()
+	c.Params["token"] = "AHRlWrr3DedtlLTyUd2wm_6r1vgT6LxSjoMCMJFjFU2Dpxej4NGhr4IbnOlp_MnFdybWOxb7rD2f0W_Oyjm58uMzxwqgY7r1lg"
+	//c.Params["token"] = c.NewToken()
 
 	c.Handler = &ChannelSocket{
 		OnOpened:  func() {},
-		OnMessage: func(msg string) {},
+		OnMessage: func(msg *Element) {},
 		OnError:   func(err error) {},
 		OnClose:   func() {},
 	}
@@ -71,12 +72,18 @@ func make_url(url string, params map[string]string) string {
 	return url
 }
 
-func RandomString(len int) string {
-	return "h3o58yoptmcc"
+const allstr = "123456789abcdefghijklmnopqrstuvwxyz"
+
+func random_String(length int) string {
+	s := make([]byte, length)
+	for i := 0; i < length; i++ {
+		s[i] = allstr[rand.Intn(len(allstr))]
+	}
+	return string(s)
 }
 
 func (c *Channel) HttpCall(_url string, body io.Reader) (resp *http.Response) {
-	c.Params["zx"] = RandomString(12)
+	c.Params["zx"] = random_String(12)
 	_url = make_url(_url, c.Params)
 	method := "GET"
 	if body != nil {
@@ -183,20 +190,32 @@ func (c *Channel) receive() {
 				c.Handler.OnError(err)
 			}
 		}
-		len, err := strconv.Atoi(string(bytes))
+		length, err := strconv.Atoi(string(bytes))
 		if err != nil {
 			panic(err)
 		}
-		buf := make([]byte, len)
+
+		buf := make([]byte, length)
 		n, err := reader.Read(buf)
 		if err != nil {
 			panic(err)
 		}
-		if n == len {
-			//log.Println(string(buf))
-			c.Handler.OnMessage(string(buf))
-		} else {
-			panic("Read less ? " + string(buf[0:n]))
+		total := n
+		for total < length {
+			buf2 := make([]byte, length-total)
+			n, err := reader.Read(buf2)
+			if err != nil {
+				panic(err)
+			}
+			copy(buf[total:total+n], buf2[0:n])
+			total += n
+		}
+		s := string(buf)
+		s = s[1 : len(buf)-2]
+		for _, msg_str := range strings.Split(s, "]\n]\n,") {
+			parser := &Parser{}
+			root := parser.Parse([]byte(msg_str + "]]"))
+			c.Handler.OnMessage(root)
 		}
 	}
 	c.Handler.OnClose()
