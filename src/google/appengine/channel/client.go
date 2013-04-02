@@ -31,33 +31,26 @@ func NewChannel(key string, token_url string) (c *Channel) {
 	return
 }
 
-type DefaultChannelHandler struct {
-}
+func (c *Channel) Open() *ChannelSocket {
+	c.Params["token"] = "AHRlWrr98fpdytEmbnLI2c3O83Qoxs7ODxQpB6EiNgirL4wIn1kBuYCaCblxCd_xce_2Laka18z04HLKP0TtWra95TMUBakTFw"
+	//c.Params["token"] = c.NewToken()
 
-func (DefaultChannelHandler) OnOpened() {
+	c.Handler = &ChannelSocket{
+		OnOpened:  func() {},
+		OnMessage: func(msg string) {},
+		OnError:   func(err error) {},
+		OnClose:   func() {},
+	}
 
-}
-func (DefaultChannelHandler) OnMessage(msg string) {
+	go func() {
+		c.get_clid_gsessionid()
+		c.test_clid_gsessionid()
+		c.get_sid()                 //get SID
+		c.register_new_conneciton() //register a new connection
+		c.receive()
+	}()
 
-}
-func (DefaultChannelHandler) onError(err error) {
-
-}
-func (DefaultChannelHandler) onClose() {
-
-}
-
-func (c *Channel) Open() ChannelSocket {
-	c.Params["token"] = "AHRlWrqFMYxLsivdKDcDuWL7vrus4lE_gBI0tQYIPuedVOyhvhJTZTqzeG8iMq4Ks3LdP5p5wtwzfAM_1u4RBd9l4-8cuT9O-Q"
-	// c.Params["token"] = c.NewToken()
-
-	c.get_clid_gsessionid()
-	c.test_clid_gsessionid()
-	c.get_sid()                 //get SID
-	c.register_new_conneciton() //register a new connection
-	c.receive()
-
-	return DefaultChannelHandler{}
+	return c.Handler
 }
 
 func (c *Channel) NewToken() string {
@@ -187,7 +180,7 @@ func (c *Channel) receive() {
 			if err == io.EOF {
 
 			} else {
-				c.Handler.onError(err)
+				c.Handler.OnError(err)
 			}
 		}
 		len, err := strconv.Atoi(string(bytes))
@@ -200,10 +193,11 @@ func (c *Channel) receive() {
 			panic(err)
 		}
 		if n == len {
+			//log.Println(string(buf))
 			c.Handler.OnMessage(string(buf))
 		} else {
 			panic("Read less ?")
 		}
 	}
-	c.Handler.onClose()
+	c.Handler.OnClose()
 }

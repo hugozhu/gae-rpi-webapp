@@ -11,14 +11,14 @@ type Channel struct {
 	Params        map[string]string
 	Client        *http.Client
 	Scookie       *http.Cookie
-	Handler       ChannelSocket
+	Handler       *ChannelSocket
 
 	rid int
 }
 
-type ChannelSocket interface {
-	OnOpened()
-	OnMessage(msg string)
-	onError(err error)
-	onClose()
+type ChannelSocket struct {
+	OnOpened  func()
+	OnMessage func(msg string)
+	OnError   func(err error)
+	OnClose   func()
 }
