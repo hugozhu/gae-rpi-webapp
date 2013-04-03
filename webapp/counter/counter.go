@@ -103,8 +103,6 @@ func background(c appengine.Context) {
 	channel.Send(c, "pi", fmt.Sprintf("%d %d", uv, pv))
 }
 
-var runing = false
-
 func Handle(w http.ResponseWriter, r *http.Request) {
 	context := appengine.NewContext(r)
 
