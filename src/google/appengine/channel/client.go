@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	// "time"
 )
 
 func NewChannel(token_url string, key string) (c *Channel) {
@@ -27,14 +28,16 @@ func NewChannel(token_url string, key string) (c *Channel) {
 			Name:  "S",
 			Value: "",
 		},
-		rid: 1,
+		rid: 1000,
+		aid: 1,
+		ofs: 0,
 	}
 	return
 }
 
 func (c *Channel) Open() *ChannelSocket {
-	c.Params["token"] = "AHRlWrr3DedtlLTyUd2wm_6r1vgT6LxSjoMCMJFjFU2Dpxej4NGhr4IbnOlp_MnFdybWOxb7rD2f0W_Oyjm58uMzxwqgY7r1lg"
-	//c.Params["token"] = c.NewToken()
+	c.Params["token"] = "AHRlWrro9TogEkPeXEw9j83vmfAifc7yBVr3eB1Oxc0emL3gmUvkSTUfbcX-tamH6m6Owj9zaTUicR0Sr31UkmABk4PBrdjwOg"
+	//	c.Params["token"] = c.NewToken()
 
 	c.Handler = &ChannelSocket{
 		OnOpened:  func() {},
@@ -48,6 +51,12 @@ func (c *Channel) Open() *ChannelSocket {
 		c.test_clid_gsessionid()
 		c.get_sid()                 //get SID
 		c.register_new_conneciton() //register a new connection
+		// go func() {
+		// 	for {
+		// 		time.Sleep(30 * time.Second)
+		// 		c.Ping()
+		// 	}
+		// }()
 		c.receive()
 	}()
 
@@ -62,6 +71,10 @@ func (c *Channel) NewToken() string {
 	token := strings.TrimSpace(string(body))
 	log.Println("new token", token)
 	c.Params["token"] = token
+
+	c.rid = 0
+	c.ofs = 0
+	c.aid = 0
 	return token
 }
 
@@ -160,62 +173,90 @@ func (c *Channel) get_sid() {
 func (c *Channel) register_new_conneciton() {
 	c.rid++
 	c.Params["RID"] = fmt.Sprintf("%d", c.rid)
+	c.Params["AID"] = fmt.Sprintf("%d", c.aid)
 
 	postfields := &url.Values{}
 	postfields.Set("count", "1")
-	postfields.Set("ofs", "0")
+	postfields.Set("ofs", strconv.Itoa(c.ofs))
 	postfields.Set("req0_m", `["connect-add-client"]`)
 	postfields.Set("req0_c", c.Params["clid"])
 	postfields.Set("req0__sc", "c")
 
-	resp := c.HttpCall("http://${host}.talkgadget.google.com/talkgadget/dch/bind?VER=8&clid=${clid}&gsessionid=${gsessionid}&prop=data&token=${token}&ec=%5B%22ci%3Aec%22%5D&SID=${SID}&RID=${RID}&AID=2&zx=${zx}&t=1", strings.NewReader(postfields.Encode()))
+	resp := c.HttpCall("http://${host}.talkgadget.google.com/talkgadget/dch/bind?VER=8&clid=${clid}&gsessionid=${gsessionid}&prop=data&token=${token}&ec=%5B%22ci%3Aec%22%5D&SID=${SID}&RID=${RID}&AID=${AID}&zx=${zx}&t=1", strings.NewReader(postfields.Encode()))
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
 	c.Handler.OnOpened()
 	log.Println("register_new_conneciton response:\n", string(body))
 }
 
-func (c *Channel) receive() {
-	resp := c.HttpCall("http://${host}.talkgadget.google.com/talkgadget/dch/bind?VER=8&clid=${clid}&gsessionid=${gsessionid}&prop=data&token=${token}&ec=%5B%22ci%3Aec%22%5D&RID=rpc&SID=${SID}&CI=0&AID=2&TYPE=xmlhttp&zx=${zx}&t=1", nil)
+func (c *Channel) Ping() {
+	c.rid++
+	c.ofs++
+	c.Params["RID"] = fmt.Sprintf("%d", c.rid)
+	c.Params["AID"] = fmt.Sprintf("%d", c.aid)
+
+	postfields := &url.Values{}
+	postfields.Set("count", "1")
+	postfields.Set("ofs", strconv.Itoa(c.ofs))
+	postfields.Set("req0_t", "cdr")
+	postfields.Set("req0_p", `["cdr",1364977044520,[["go-rpi@appspot.com",B32ED80D3DA97D09,1,0]]]`)
+	postfields.Set("req0_c", c.Params["clid"])
+	postfields.Set("req0__sc", "c")
+
+	resp := c.HttpCall("http://${host}.talkgadget.google.com/talkgadget/dch/bind?VER=8&clid=${clid}&gsessionid=${gsessionid}&prop=data&token=${token}&ec=%5B%22ci%3Aec%22%5D&SID=${SID}&RID=${RID}&AID=${AID}&zx=${zx}&t=1", strings.NewReader(postfields.Encode()))
 	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+	log.Println("ping response:\n", string(body))
+}
 
-	reader := bufio.NewReader(resp.Body)
-
+func (c *Channel) receive() {
 	for {
-		bytes, _, err := reader.ReadLine()
-		if err != nil {
-			if err == io.EOF {
-				break
-			} else {
-				c.Handler.OnError(err)
-			}
-		}
-		length, err := strconv.Atoi(string(bytes))
-		if err != nil {
-			panic(err)
-		}
+		c.rid++
+		c.Params["RID"] = fmt.Sprintf("%d", c.rid)
+		c.Params["AID"] = fmt.Sprintf("%d", c.aid)
 
-		buf := make([]byte, length)
-		n, err := reader.Read(buf)
-		if err != nil {
-			panic(err)
-		}
-		total := n
-		for total < length {
-			buf2 := make([]byte, length-total)
-			n, err := reader.Read(buf2)
+		resp := c.HttpCall("http://${host}.talkgadget.google.com/talkgadget/dch/bind?VER=8&clid=${clid}&gsessionid=${gsessionid}&prop=data&token=${token}&ec=%5B%22ci%3Aec%22%5D&RID=rpc&SID=${SID}&CI=0&AID=${AID}&TYPE=xmlhttp&zx=${zx}&t=1", nil)
+		defer resp.Body.Close()
+
+		reader := bufio.NewReader(resp.Body)
+
+		for {
+			bytes, _, err := reader.ReadLine()
+			if err != nil {
+				if err == io.EOF {
+					break
+				} else {
+					c.Handler.OnError(err)
+				}
+			}
+			length, err := strconv.Atoi(string(bytes))
 			if err != nil {
 				panic(err)
 			}
-			copy(buf[total:total+n], buf2[0:n])
-			total += n
-		}
-		s := string(buf)
-		s = s[1 : len(buf)-2]
-		for _, msg_str := range strings.Split(s, "]\n]\n,") {
-			parser := &Parser{}
-			root := parser.Parse([]byte(msg_str + "]]"))
-			c.Handler.OnMessage(root)
+
+			buf := make([]byte, length)
+			n, err := reader.Read(buf)
+			if err != nil {
+				panic(err)
+			}
+			total := n
+			for total < length {
+				buf2 := make([]byte, length-total)
+				n, err := reader.Read(buf2)
+				if err != nil {
+					panic(err)
+				}
+				copy(buf[total:total+n], buf2[0:n])
+				total += n
+			}
+			s := string(buf)
+			s = s[1 : len(buf)-2]
+			for _, msg_str := range strings.Split(s, "]\n]\n,") {
+				parser := &Parser{}
+				root := parser.Parse([]byte(msg_str + "]]"))
+				c.aid, _ = strconv.Atoi(root.Key)
+				c.Handler.OnMessage(root)
+			}
 		}
 	}
 	c.Handler.OnClose()

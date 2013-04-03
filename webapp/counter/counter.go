@@ -127,6 +127,8 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Expires", "Sat, 26 Jul 1997 05:00:00 GMT")
 
 	fmt.Fprintf(w, "%s", GIF)
+
+	channel.Send(context, "pi", zcookie.Value+"\n"+r.RemoteAddr+"\n"+r.Referer()+"\n"+r.UserAgent())
 }
 
 func count_uv_pv(c appengine.Context, mins int) (uv int, pv int) {

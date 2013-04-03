@@ -14,6 +14,8 @@ type Channel struct {
 	Handler       *ChannelSocket
 
 	rid int
+	aid int
+	ofs int
 }
 
 type ChannelSocket struct {
