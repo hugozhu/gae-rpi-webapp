@@ -126,7 +126,7 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintf(w, "%s", GIF)
 
-	channel.Send(context, "pi", zcookie.Value+"\n"+r.RemoteAddr+"\n"+r.Referer()+"\n"+r.UserAgent())
+	channel.Send(context, "pi", zcookie.Value+"\n"+r.RemoteAddr+"\n"+r.Referer()+"\n"+r.FormValue("r")+"\n"+r.UserAgent())
 }
 
 func count_uv_pv(c appengine.Context, mins int) (uv int, pv int) {
