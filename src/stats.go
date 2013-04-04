@@ -1,17 +1,34 @@
 package main
 
 import (
+	"analytics"
 	"encoding/json"
 	. "github.com/hugozhu/gae-channel"
 	"log"
 	"strings"
+	"time"
 )
+
+var pv = analytics.NewPV(5, 60)
+var uv = analytics.NewUV(5 * 60)
 
 func init() {
 
 }
-
 func main() {
+
+	for {
+		run()
+	}
+}
+
+func run() {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Println("panic, re-init")
+		}
+	}()
+
 	log.Println("started")
 	stop_chan := make(chan bool)
 
@@ -36,7 +53,10 @@ func main() {
 				if len(v) == 2 && v[0] == "ae" {
 					s = v[1]
 					v = strings.Split(s, "\n")
-					log.Println(v)
+					zcookie := v[0]
+					t := time.Now()
+					pv.AddOne(t)
+					uv.AddOne(zcookie, t)
 				}
 			}
 		}
@@ -45,6 +65,18 @@ func main() {
 	socket.OnError = func(err error) {
 		log.Println("error:", err)
 	}
+
+	go func() {
+		for {
+			a := uv.Sum()
+			b := pv.Sum()
+			if a == 0 && b > 0 {
+				a = 1
+			}
+			log.Println(a, b)
+			time.Sleep(5 * time.Second)
+		}
+	}()
 
 	<-stop_chan
 }

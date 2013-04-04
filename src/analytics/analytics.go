@@ -66,8 +66,8 @@ func (pv *PV) clear(from int, end int) {
 	}
 }
 
-func (pv *PV) AddOne() {
-	pv.Add(time.Now(), 1)
+func (pv *PV) AddOne(t time.Time) {
+	pv.Add(t, 1)
 }
 
 func (pv *PV) Add(timestamp time.Time, count int) {
@@ -92,6 +92,7 @@ func (pv *PV) Add(timestamp time.Time, count int) {
 		if index == pv.offset {
 			pv.slots[index]++
 		} else {
+			pv.clear(pv.offset+1, index)
 			pv.slots[index] = count
 			pv.offset = index
 		}
@@ -112,7 +113,9 @@ func (pv *PV) Sum() int {
 		}
 	} else {
 		for i := 0; i < len(pv.slots); i++ {
-			sum = sum + pv.slots[i]
+			if i <= pv.offset || i > delta {
+				sum = sum + pv.slots[i]
+			}
 		}
 	}
 	return sum
