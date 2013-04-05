@@ -113,7 +113,7 @@ func (pv *PV) Sum() int {
 		}
 	} else {
 		for i := 0; i < len(pv.slots); i++ {
-			if i <= pv.offset || i > delta {
+			if i <= pv.offset {
 				sum = sum + pv.slots[i]
 			}
 		}

@@ -16,7 +16,6 @@ func init() {
 
 }
 func main() {
-
 	for {
 		run()
 	}
@@ -28,7 +27,10 @@ func run() {
 			log.Println("panic, re-init")
 		}
 	}()
+	_run()
+}
 
+func _run() {
 	log.Println("started")
 	stop_chan := make(chan bool)
 

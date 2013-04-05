@@ -29,15 +29,28 @@ func _TestUV(t *testing.T) {
 	t.Log(uv)
 }
 
+var logs []int64
+
+func correct_pv(threshold int64) int {
+	count := 0
+	now := time.Now().Unix()
+	for _, t := range logs {
+		if now-t <= threshold {
+			count++
+		}
+	}
+	return count
+}
+
 func TestPV(t *testing.T) {
 	visitors := []string{"a", "b", "c", "d", "e", "f"}
 
-	pv := NewPV(2, 10) //count pv in 1 mins
+	pv := NewPV(2, 10) //count pv in 20 seconds
 	uv := NewUV(2 * 10)
 	count := 1
 	go func() {
 		for {
-			log.Println(count, "[", uv.Sum(), ",", pv.Sum(), "]", pv.slots, uv.all)
+			log.Println(count, "[", uv.Sum(), ",", pv.Sum(), ",", correct_pv(20), "]", pv.slots, uv.all, pv.base.Unix(), time.Now().Unix())
 			count++
 			if pv.Sum() > 20 {
 				t.Error("Impossible to exceed 20 PVs")
@@ -48,24 +61,30 @@ func TestPV(t *testing.T) {
 
 	go func() {
 		for i := 0; i < 15; i++ {
-			pv.AddOne(time.Now())
+			now := time.Now()
+			pv.AddOne(now)
 			zcookie := visitors[rand.Intn(len(visitors))]
-			uv.AddOne(zcookie, time.Now())
+			uv.AddOne(zcookie, now)
+			logs = append(logs, now.Unix())
 			time.Sleep(1 * time.Second)
 		}
-		time.Sleep(20 * time.Second)
-		for i := 0; i < 15; i++ {
-			pv.AddOne(time.Now())
+		time.Sleep(60 * time.Second)
+		for i := 0; i < 10; i++ {
+			now := time.Now()
+			pv.AddOne(now)
 			zcookie := visitors[rand.Intn(len(visitors))]
-			uv.AddOne(zcookie, time.Now())
-			time.Sleep(1 * time.Second)
+			uv.AddOne(zcookie, now)
+			logs = append(logs, now.Unix())
+			time.Sleep(20 * time.Second)
 		}
 		time.Sleep(41 * time.Second)
 		for i := 0; i < 15; i++ {
-			pv.AddOne(time.Now())
+			now := time.Now()
+			pv.AddOne(now)
 			zcookie := visitors[rand.Intn(len(visitors))]
-			uv.AddOne(zcookie, time.Now())
-			time.Sleep(1 * time.Second)
+			uv.AddOne(zcookie, now)
+			logs = append(logs, now.Unix())
+			time.Sleep(10 * time.Second)
 		}
 	}()
 
