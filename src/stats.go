@@ -10,7 +10,7 @@ import (
 )
 
 var pv = analytics.NewPV(5, 60)
-var uv = analytics.NewUV(5 * 60)
+var uv = analytics.NewUV(5, 60)
 
 func init() {
 
@@ -22,15 +22,6 @@ func main() {
 }
 
 func run() {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Println("panic, re-init")
-		}
-	}()
-	_run()
-}
-
-func _run() {
 	log.Println("started")
 	stop_chan := make(chan bool)
 
@@ -70,12 +61,10 @@ func _run() {
 
 	go func() {
 		for {
-			a := uv.Sum()
-			b := pv.Sum()
-			if a == 0 && b > 0 {
-				a = 1
-			}
-			log.Println(a, b)
+			a, slots_a := uv.Sum()
+			b, slots_b := pv.Sum()
+			log.Println("UV", a, slots_a)
+			log.Println("PV", b, slots_b)
 			time.Sleep(5 * time.Second)
 		}
 	}()

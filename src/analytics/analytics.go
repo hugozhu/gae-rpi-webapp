@@ -1,6 +1,7 @@
 package analytics
 
 import (
+	"log"
 	"sync"
 	"time"
 )
@@ -19,13 +20,17 @@ type PV struct {
 type UV struct {
 	sync.Mutex
 	all        map[string]int64
+	interval   int //in seconds
 	expiration int //in seconds
+	slots      []int
 }
 
-func NewUV(expiration int) *UV {
+func NewUV(interval int, num_of_slots int) *UV {
 	uv := &UV{
+		interval:   interval,
 		all:        map[string]int64{},
-		expiration: expiration,
+		expiration: interval * num_of_slots,
+		slots:      make([]int, num_of_slots),
 	}
 	return uv
 }
@@ -36,16 +41,27 @@ func (uv *UV) AddOne(zcookie string, timestamp time.Time) {
 	uv.all[zcookie] = timestamp.Unix()
 }
 
-func (uv *UV) Sum() int {
+func (uv *UV) Sum() (int, []int) {
 	uv.Lock()
 	defer uv.Unlock()
 	now := time.Now().Unix()
-	for k, v := range uv.all {
-		if int(now-v) > uv.expiration {
-			delete(uv.all, k)
-		}
+	num_of_slots := len(uv.slots)
+	for i, _ := range uv.slots {
+		uv.slots[i] = 0
 	}
-	return len(uv.all)
+	for k, v := range uv.all {
+		delta := int(now - v)
+		if delta > uv.expiration {
+			delete(uv.all, k)
+			continue
+		}
+		p := num_of_slots - 1 - delta/uv.interval
+		if p < 0 {
+			p = 0
+		}
+		uv.slots[p]++
+	}
+	return len(uv.all), uv.slots
 }
 
 func NewPV(interval int, num_of_slots int) *PV {
@@ -99,24 +115,33 @@ func (pv *PV) Add(timestamp time.Time, count int) {
 	}
 }
 
-func (pv *PV) Sum() int {
+func (pv *PV) Sum() (int, []int) {
 	pv.Lock()
 	defer pv.Unlock()
 	now := time.Now()
 	sum := 0
 	delta := int(now.Unix()-pv.base.Unix()) / pv.interval
+
+	slots := make([]int, pv.num_of_slots)
+
+	log.Println(delta)
 	if delta >= pv.num_of_slots*2 {
-		return 0
+		return 0, slots
 	} else if delta >= pv.num_of_slots {
 		for i := delta - pv.num_of_slots; i < len(pv.slots); i++ {
 			sum = sum + pv.slots[i]
+			p := delta - pv.num_of_slots - i
+			slots[p] = pv.slots[i]
 		}
 	} else {
-		for i := 0; i < len(pv.slots); i++ {
-			if i <= pv.offset {
-				sum = sum + pv.slots[i]
+		for i := 0; i <= pv.offset; i++ {
+			p := pv.num_of_slots - delta - i - 1
+			if p < 0 {
+				p = pv.num_of_slots - 1
 			}
+			slots[p] = pv.slots[i]
+			sum = sum + pv.slots[i]
 		}
 	}
-	return sum
+	return sum, slots
 }
