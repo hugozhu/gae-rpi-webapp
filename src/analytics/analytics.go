@@ -8,60 +8,84 @@ import (
 
 var pv_lock = sync.Mutex{}
 
-type PV struct {
+type Analytics struct {
 	sync.Mutex
+	pv *PV
+	uv *UV
+}
+
+type PV struct {
 	slots        []int
 	base         time.Time //the first slot's timestamp
 	interval     int       //the duration of slot
 	num_of_slots int
 	offset       int //indicate previous slot we were adding up
+	all          []int64
 }
 
 type UV struct {
-	sync.Mutex
-	all        map[string]int64
-	interval   int //in seconds
-	expiration int //in seconds
-	slots      []int
+	all          map[string]int64
+	interval     int //in seconds
+	expiration   int //in seconds
+	slots        []int
+	num_of_slots int
+}
+
+func NewAnalytics(interval int, num_of_slots int) *Analytics {
+	a := &Analytics{
+		uv: NewUV(interval, num_of_slots),
+		pv: NewPV(interval, num_of_slots),
+	}
+	return a
+}
+
+func (a *Analytics) AddOne(zcookie string, t time.Time) {
+	a.Lock()
+	defer a.Unlock()
+
+	a.pv.AddOne(t)
+	a.uv.AddOne(zcookie, t)
+}
+
+func (a *Analytics) Sum() (uv int, uv_slots []int, pv int, pv_slots []int) {
+	a.Lock()
+	defer a.Unlock()
+
+	uv, uv_slots = a.uv.Sum()
+	pv, pv_slots = a.pv.Sum()
+	return
 }
 
 func NewUV(interval int, num_of_slots int) *UV {
 	uv := &UV{
-		interval:   interval,
-		all:        map[string]int64{},
-		expiration: interval * num_of_slots,
-		slots:      make([]int, num_of_slots),
+		interval:     interval,
+		all:          map[string]int64{},
+		expiration:   interval * num_of_slots,
+		num_of_slots: num_of_slots,
 	}
 	return uv
 }
 
 func (uv *UV) AddOne(zcookie string, timestamp time.Time) {
-	uv.Lock()
-	defer uv.Unlock()
 	uv.all[zcookie] = timestamp.Unix()
 }
 
 func (uv *UV) Sum() (int, []int) {
-	uv.Lock()
-	defer uv.Unlock()
 	now := time.Now().Unix()
-	num_of_slots := len(uv.slots)
-	for i, _ := range uv.slots {
-		uv.slots[i] = 0
-	}
+	slots := make([]int, uv.num_of_slots)
 	for k, v := range uv.all {
 		delta := int(now - v)
 		if delta > uv.expiration {
 			delete(uv.all, k)
 			continue
 		}
-		p := num_of_slots - 1 - delta/uv.interval
+		p := uv.num_of_slots - 1 - delta/uv.interval
 		if p < 0 {
 			p = 0
 		}
-		uv.slots[p]++
+		slots[p]++
 	}
-	return len(uv.all), uv.slots
+	return len(uv.all), slots
 }
 
 func NewPV(interval int, num_of_slots int) *PV {
@@ -73,7 +97,34 @@ func NewPV(interval int, num_of_slots int) *PV {
 		num_of_slots: num_of_slots,
 	}
 	pv.clear(0, len(pv.slots))
+	pv.all = []int64{}
 	return pv
+}
+
+func (pv *PV) AddOne(t time.Time) {
+	pv.all = append(pv.all, t.Unix())
+}
+
+func (pv *PV) Sum() (int, []int) {
+	now := time.Now().Unix()
+	threshold := pv.interval * pv.num_of_slots
+	slots := make([]int, pv.num_of_slots)
+	total := 0
+	for i, v := range pv.all {
+		if int(now-v) <= threshold {
+			pv.all = pv.all[i:]
+			total = len(pv.all)
+			for i = 0; i < len(pv.all); i++ {
+				p := pv.num_of_slots - 1 - int(now-pv.all[i])/pv.interval
+				if p < 0 {
+					p = 0
+				}
+				slots[p]++
+			}
+			break
+		}
+	}
+	return total, slots
 }
 
 func (pv *PV) clear(from int, end int) {
@@ -82,14 +133,7 @@ func (pv *PV) clear(from int, end int) {
 	}
 }
 
-func (pv *PV) AddOne(t time.Time) {
-	pv.Add(t, 1)
-}
-
-func (pv *PV) Add(timestamp time.Time, count int) {
-	pv.Lock()
-	defer pv.Unlock()
-
+func (pv *PV) _add(timestamp time.Time, count int) {
 	now := timestamp
 	delta := int(now.Unix()-pv.base.Unix()) / pv.interval
 	index := delta % pv.num_of_slots
@@ -115,9 +159,7 @@ func (pv *PV) Add(timestamp time.Time, count int) {
 	}
 }
 
-func (pv *PV) Sum() (int, []int) {
-	pv.Lock()
-	defer pv.Unlock()
+func (pv *PV) _sum() (int, []int) {
 	now := time.Now()
 	sum := 0
 	delta := int(now.Unix()-pv.base.Unix()) / pv.interval

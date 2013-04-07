@@ -9,8 +9,7 @@ import (
 	"time"
 )
 
-var pv = analytics.NewPV(5, 60)
-var uv = analytics.NewUV(5, 60)
+var stats = analytics.NewAnalytics(5, 60)
 
 func init() {
 
@@ -48,8 +47,7 @@ func run() {
 					v = strings.Split(s, "\n")
 					zcookie := v[0]
 					t := time.Now()
-					pv.AddOne(t)
-					uv.AddOne(zcookie, t)
+					stats.AddOne(zcookie, t)
 				}
 			}
 		}
@@ -61,8 +59,7 @@ func run() {
 
 	go func() {
 		for {
-			a, slots_a := uv.Sum()
-			b, slots_b := pv.Sum()
+			a, slots_a, b, slots_b := stats.Sum()
 			log.Println("UV", a, slots_a)
 			log.Println("PV", b, slots_b)
 			time.Sleep(5 * time.Second)
