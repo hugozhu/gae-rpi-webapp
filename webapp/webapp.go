@@ -3,6 +3,7 @@ package webapp
 import (
 	"dnspod"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"webapp/config"
 	"webapp/counter"
@@ -20,6 +21,8 @@ func init() {
 
 	http.HandleFunc("/switch_dns", switch_dns)
 
+	http.HandleFunc("/ping", ping)
+
 	http.HandleFunc("/", handler)
 }
 
@@ -36,4 +39,25 @@ func switch_dns(w http.ResponseWriter, r *http.Request) {
 	client := urlfetch.Client(c)
 	w.Header().Set("Content-type", "text/plain")
 	fmt.Fprintf(w, "%s", dnspod.Update(client, cname))
+}
+
+func ping(w http.ResponseWriter, r *http.Request) {
+	url := r.FormValue("url")
+	if url == "" {
+		url = "http://go.myalert.info/status.html"
+	}
+	c := appengine.NewContext(r)
+	client := urlfetch.Client(c)
+	resp, err := client.Get(url)
+	body := ""
+	if err != nil {
+		body = err.Error()
+	} else {
+		bytes, _ := ioutil.ReadAll(resp.Body)
+		body = string(bytes)
+		resp.Body.Close()
+	}
+
+	w.Header().Set("Content-type", "text/plain")
+	fmt.Fprintf(w, "%s", body)
 }
