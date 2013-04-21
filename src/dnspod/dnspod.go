@@ -1,13 +1,13 @@
 package dnspod
 
 import (
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 )
 
-func Update(cname string) bool {
-	client := &http.Client{}
+func Update(client *http.Client, cname string) string {
 	body := url.Values{
 		"login_email":    {login_email},
 		"login_password": {login_password},
@@ -24,9 +24,10 @@ func Update(cname string) bool {
 	req.Header.Set("Accept", "text/json")
 	req.Header.Set("Content-type", "application/x-www-form-urlencoded")
 	resp, err := client.Do(req)
-	defer resp.Body.Close()
 	if err != nil {
-		return false
+		return err.Error()
 	}
-	return resp.StatusCode == 200
+	defer resp.Body.Close()
+	bytes, _ := ioutil.ReadAll(resp.Body)
+	return string(bytes)
 }
