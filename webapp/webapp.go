@@ -9,7 +9,9 @@ import (
 	"webapp/counter"
 
 	"appengine"
+	"appengine/memcache"
 	"appengine/urlfetch"
+	"strconv"
 )
 
 func init() {
@@ -48,7 +50,41 @@ func ping(w http.ResponseWriter, r *http.Request) {
 	}
 	c := appengine.NewContext(r)
 	client := urlfetch.Client(c)
+	ok, body := url_ok(client, url)
+
+	item, _ := memcache.Get(c, "site_fails")
+
+	if ok {
+		if item != nil {
+			//switch back to pi
+			dnspod.Update(client, "pi.myalert.info.")
+			memcache.Delete(c, "site_fails")
+		}
+	} else {
+		if item != nil {
+			//previously failed, switch to github
+			dnspod.Update(client, "hugozhu.github.io.")
+			value, _ := strconv.Atoi(string(item.Value))
+			value++
+			item.Value = []byte(strconv.Itoa(value))
+			memcache.Set(c, item)
+		} else {
+			//first time failed
+			item = &memcache.Item{
+				Key:   "site_fails",
+				Value: []byte("0"),
+			}
+			memcache.Set(c, item)
+		}
+	}
+
+	w.Header().Set("Content-type", "text/plain")
+	fmt.Fprintf(w, "%s", body)
+}
+
+func url_ok(client *http.Client, url string) (bool, string) {
 	resp, err := client.Get(url)
+	ok := false
 	body := ""
 	if err != nil {
 		body = err.Error()
@@ -56,8 +92,7 @@ func ping(w http.ResponseWriter, r *http.Request) {
 		bytes, _ := ioutil.ReadAll(resp.Body)
 		body = string(bytes)
 		resp.Body.Close()
+		ok = resp.StatusCode == 200
 	}
-
-	w.Header().Set("Content-type", "text/plain")
-	fmt.Fprintf(w, "%s", body)
+	return ok, body
 }
