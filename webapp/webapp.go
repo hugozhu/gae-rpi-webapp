@@ -35,7 +35,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 func switch_dns(w http.ResponseWriter, r *http.Request) {
 	cname := r.FormValue("cname")
 	if cname == "" {
-		cname = "hugozhu.github.io."
+		cname = "gitcafe.myalert.info."
 	}
 	c := appengine.NewContext(r)
 	client := urlfetch.Client(c)
@@ -63,7 +63,7 @@ func ping(w http.ResponseWriter, r *http.Request) {
 	} else {
 		if item != nil {
 			//previously failed, switch to github
-			dnspod.Update(client, "hugozhu.github.io.")
+			dnspod.Update(client, "gitcafe.myalert.info.")
 			value, _ := strconv.Atoi(string(item.Value))
 			value++
 			item.Value = []byte(strconv.Itoa(value))
