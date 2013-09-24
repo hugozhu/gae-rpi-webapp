@@ -14,6 +14,7 @@ var stats = analytics.NewAnalytics(5, 60)
 func init() {
 
 }
+
 func main() {
 	for {
 		run()

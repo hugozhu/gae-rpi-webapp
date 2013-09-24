@@ -54,16 +54,19 @@ func ping(w http.ResponseWriter, r *http.Request) {
 
 	item, _ := memcache.Get(c, "site_fails")
 
+	w.Header().Set("Content-type", "text/plain")
+
 	if ok {
 		if item != nil {
 			//switch back to pi
-			dnspod.Update(client, "pi.myalert.info.")
+			body = dnspod.Update(client, "pi.myalert.info.")
 			memcache.Delete(c, "site_fails")
 		}
+		fmt.Fprintf(w, "%s", body)
 	} else {
 		if item != nil {
 			//previously failed, switch to github
-			dnspod.Update(client, "gitcafe.myalert.info.")
+			body = dnspod.Update(client, "gitcafe.myalert.info.")
 			value, _ := strconv.Atoi(string(item.Value))
 			value++
 			item.Value = []byte(strconv.Itoa(value))
@@ -76,10 +79,8 @@ func ping(w http.ResponseWriter, r *http.Request) {
 			}
 			memcache.Set(c, item)
 		}
+		fmt.Fprintf(w, "%s", body)
 	}
-
-	w.Header().Set("Content-type", "text/plain")
-	fmt.Fprintf(w, "%s", body)
 }
 
 func url_ok(client *http.Client, url string) (bool, string) {
