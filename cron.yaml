@@ -1,4 +1,1 @@
 cron:
-- description: check pi alive
-  url: /ping
-  schedule: every 15 minutes
