@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"webapp/config"
 	"webapp/counter"
+	"webapp/github"
 )
 
 func init() {
@@ -11,9 +12,10 @@ func init() {
 	http.HandleFunc("/online", counter.Count)
 	http.HandleFunc("/online_get_token", counter.GetToken)
 	http.HandleFunc("/online_send_msg", counter.SendMessage)
-	http.HandleFunc("/", handler)
+	http.HandleFunc("/github", github.Handle)
+	// http.HandleFunc("/", handler)
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "http://hugozhu.myalert.info", 302)
-}
+// func handler(w http.ResponseWriter, r *http.Request) {
+// 	http.Redirect(w, r, "http://hugozhu.myalert.info", 302)
+// }
