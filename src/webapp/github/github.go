@@ -76,7 +76,7 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 			},
 		}
 	default:
-		msg.Body.Title = action
+		msg.Body.Title = "[" + *event.Repo.Name + "] " + action
 		msg.URL = *event.Repo.HTMLURL
 	}
 	msg.Body.Author = *event.Sender.Login
