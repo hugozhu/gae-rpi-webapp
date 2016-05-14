@@ -12,7 +12,7 @@ import (
 
 	"strings"
 
-	g "github.com/google/go-github/github"
+	"github.com/google/go-github/github"
 	dingtalk "github.com/hugozhu/godingtalk"
 
 	"crypto/hmac"
@@ -37,7 +37,7 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var event g.WebHookPayload
+	var event github.WebHookPayload
 	json.Unmarshal(body, &event)
 
 	context := appengine.NewContext(r)
