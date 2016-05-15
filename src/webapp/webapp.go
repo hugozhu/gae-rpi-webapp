@@ -4,7 +4,8 @@ import (
 	"net/http"
 	"webapp/config"
 	"webapp/counter"
-	"webapp/github"
+
+	"github.com/hugozhu/godingtalk/demo/github"
 )
 
 func init() {
