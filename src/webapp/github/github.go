@@ -2,18 +2,21 @@ package github
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"time"
 
 	"appengine"
 	"appengine/urlfetch"
 
 	"strings"
 
+	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/google/go-github/github"
-	dingtalk "github.com/hugozhu/godingtalk"
+	"github.com/hugozhu/godingtalk"
 
 	"crypto/hmac"
 	"crypto/sha1"
@@ -23,6 +26,23 @@ import (
 const CHAT_ID = "chat6a93bc1ee3b7d660d372b1b877a9de62"
 const SENDER_ID = "011217462940"
 
+var memcache_addr string
+
+func init() {
+	host := os.Getenv("MEMCACHE_PORT_11211_TCP_ADDR")
+	if host == "" {
+		host = "localhost"
+	}
+
+	port := os.Getenv("MEMCACHE_PORT_11211_TCP_PORT")
+	if port == "" {
+		port = "11211"
+	}
+
+	memcache_addr = fmt.Sprintf("%s:%s", host, port)
+}
+
+//Handle 处理Github的Webhook Events
 func Handle(w http.ResponseWriter, r *http.Request) {
 	var err error
 
@@ -41,15 +61,16 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 	json.Unmarshal(body, &event)
 
 	context := appengine.NewContext(r)
-	c := dingtalk.NewDingTalkClient(os.Getenv("CORP_ID"), os.Getenv("CORP_SECRET"))
+	c := godingtalk.NewDingTalkClient(os.Getenv("CORP_ID"), os.Getenv("CORP_SECRET"))
 	c.HTTPClient = urlfetch.Client(context)
 	c.HTTPClient.Transport = &urlfetch.Transport{
 		Context: context,
 		AllowInvalidServerCertificate: true,
 	}
-	c.RefreshAccessToken()
+	c.Cache = NewMemCache(memcache_addr, ".access_token")
+	refresh_token_error := c.RefreshAccessToken()
 
-	msg := dingtalk.OAMessage{}
+	msg := godingtalk.OAMessage{}
 	msg.Head.Text = "Github"
 	msg.Head.BgColor = "FF00AABB"
 	switch action {
@@ -57,7 +78,7 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 		msg.Body.Title = "[" + *event.Repo.Name + "] Push"
 		msg.URL = *event.Compare
 		for _, commit := range event.Commits {
-			msg.Body.Form = append(msg.Body.Form, dingtalk.OAMessageForm{
+			msg.Body.Form = append(msg.Body.Form, godingtalk.OAMessageForm{
 				Key:   "Commits: ",
 				Value: *commit.Message + "\n Modified: " + strings.Join(commit.Modified, ","),
 			})
@@ -65,7 +86,7 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 	case "watch":
 		msg.Body.Title = "[" + *event.Repo.Name + "] Watch Updated"
 		msg.URL = *event.Repo.HTMLURL
-		msg.Body.Form = []dingtalk.OAMessageForm{
+		msg.Body.Form = []godingtalk.OAMessageForm{
 			{
 				Key:   "Watchers: ",
 				Value: fmt.Sprintf("%d", *event.Repo.WatchersCount),
@@ -84,6 +105,8 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 	err = c.SendOAMessage(SENDER_ID, CHAT_ID, msg)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("%v", err), http.StatusInternalServerError)
+	} else if refresh_token_error != nil {
+		http.Error(w, fmt.Sprintf("%v", refresh_token_error), http.StatusInternalServerError)
 	}
 }
 
@@ -106,4 +129,44 @@ func verifySignature(secret []byte, signature string, body []byte) bool {
 	hex.Decode(actual, []byte(signature[5:]))
 
 	return hmac.Equal(signBody(secret, body), actual)
+}
+
+type MemCache struct {
+	client *memcache.Client
+	key    string
+}
+
+func NewMemCache(addr string, key string) *MemCache {
+	return &MemCache{
+		client: memcache.New(addr),
+		key:    key,
+	}
+}
+
+func (c *MemCache) Set(data godingtalk.Expirable) error {
+	bytes, err := json.Marshal(data)
+	if err == nil {
+		item := &memcache.Item{
+			Key:        c.key,
+			Value:      bytes,
+			Expiration: int32(data.ExpiresIn()),
+		}
+		err = c.client.Set(item)
+	}
+	return err
+}
+
+func (c *MemCache) Get(data godingtalk.Expirable) error {
+	item, err := c.client.Get(c.key)
+	if err == nil {
+		err = json.Unmarshal(item.Value, data)
+		if err == nil {
+			created := data.CreatedAt()
+			expires := data.ExpiresIn()
+			if err == nil && time.Now().Unix() > created+int64(expires-60) {
+				err = errors.New("Data is already expired")
+			}
+		}
+	}
+	return err
 }
