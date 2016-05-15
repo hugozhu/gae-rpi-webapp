@@ -4,8 +4,6 @@ import (
 	"net/http"
 	"webapp/config"
 	"webapp/counter"
-
-	"github.com/hugozhu/godingtalk/demo/github"
 )
 
 func init() {
@@ -13,7 +11,6 @@ func init() {
 	http.HandleFunc("/online", counter.Count)
 	http.HandleFunc("/online_get_token", counter.GetToken)
 	http.HandleFunc("/online_send_msg", counter.SendMessage)
-	http.HandleFunc("/github", github.Handle)
 	// http.HandleFunc("/", handler)
 }
 
