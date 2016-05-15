@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"appengine"
+	"appengine/memcache"
 	"appengine/urlfetch"
 
 	"strings"
 
-	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/google/go-github/github"
 	"github.com/hugozhu/godingtalk"
 
@@ -67,7 +67,7 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 		Context: context,
 		AllowInvalidServerCertificate: true,
 	}
-	c.Cache = NewMemCache(memcache_addr, ".access_token")
+	c.Cache = NewMemCache(context, ".access_token")
 	refresh_token_error := c.RefreshAccessToken()
 
 	msg := godingtalk.OAMessage{}
@@ -132,14 +132,14 @@ func verifySignature(secret []byte, signature string, body []byte) bool {
 }
 
 type MemCache struct {
-	client *memcache.Client
-	key    string
+	ctx appengine.Context
+	key string
 }
 
-func NewMemCache(addr string, key string) *MemCache {
+func NewMemCache(ctx appengine.Context, key string) *MemCache {
 	return &MemCache{
-		client: memcache.New(addr),
-		key:    key,
+		ctx: ctx,
+		key: key,
 	}
 }
 
@@ -149,15 +149,15 @@ func (c *MemCache) Set(data godingtalk.Expirable) error {
 		item := &memcache.Item{
 			Key:        c.key,
 			Value:      bytes,
-			Expiration: int32(data.ExpiresIn()),
+			Expiration: time.Duration(data.ExpiresIn()) * time.Second,
 		}
-		err = c.client.Set(item)
+		err = memcache.Set(c.ctx, item)
 	}
 	return err
 }
 
 func (c *MemCache) Get(data godingtalk.Expirable) error {
-	item, err := c.client.Get(c.key)
+	item, err := memcache.Get(c.ctx, c.key)
 	if err == nil {
 		err = json.Unmarshal(item.Value, data)
 		if err == nil {
