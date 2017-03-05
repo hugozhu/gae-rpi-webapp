@@ -7,7 +7,7 @@ includes:
 - .secret.yaml
 
 handlers:
-- url: /(b.gif|online|online_get_token|online_send_msg|github)
+- url: /(b.gif|online|online_get_token|online_send_msg|github|dnspod)
   script: _go_app
 
 - url: /
