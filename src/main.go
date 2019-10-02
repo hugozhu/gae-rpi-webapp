@@ -4,13 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/hugozhu/godingtalk/demo/github"
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/urlfetch"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/hugozhu/godingtalk/demo/github"
 )
 
 func init() {
@@ -43,11 +42,16 @@ func Dnspod(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	data, _ := json.Marshal(&request)
-	ctx := appengine.NewContext(r)
-	client := urlfetch.Client(ctx)
+	//ctx := appengine.NewContext(r)
+	//client := urlfetch.Client(ctx)
+	client := &http.Client{}
 	req, _ := http.NewRequest("POST", fmt.Sprintf("https://oapi.dingtalk.com/robot/send?access_token=%s", token), bytes.NewReader(data))
 	req.Header.Set("Content-Type", "application/json")
-	resp, _ := client.Do(req)
+	resp, err := client.Do(req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("%v", err), http.StatusInternalServerError)
+		return
+	}
 	body, _ := ioutil.ReadAll(resp.Body)
 	fmt.Fprintf(w, "%s", string(body))
 }
