@@ -1,14 +1,16 @@
-application: go-rpi
-version: 1
-runtime: go
-api_version: go1  
+# application: go-rpi
+# version: 1
+# api_version: go1  
+
+runtime: go112
+main: ./src 
 
 includes:
 - .secret.yaml
 
 handlers:
 - url: /(b.gif|online|online_get_token|online_send_msg|github|dnspod)
-  script: _go_app
+  script: auto
 
 - url: /
   static_files: hugozhu.github.com/index.html
