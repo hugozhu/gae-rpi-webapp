@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"appengine"
-	"appengine/channel"
-	"appengine/log"
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/channel"
+	"google.golang.org/appengine/log"
 
 	"webapp/config"
 )
