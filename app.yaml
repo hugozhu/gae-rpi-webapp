@@ -1,5 +1,5 @@
 # application: go-rpi
-# version: 1
+# version: 2
 # api_version: go1  
 
 runtime: go112
